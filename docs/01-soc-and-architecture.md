@@ -9,7 +9,7 @@
 | Cảm biến nhiệt độ (+ độ ẩm "nếu hợp lý") | **Có đo độ ẩm**: SHT40 đo cả hai, cùng chip, cùng năng lượng (mục 4.1) |
 | Matter over Thread, ICD, commissioning BLE | ICD **LIT-capable, tự fallback SIT** (mục 2.3). **Không dùng SSED** (mục 6.5) |
 | 1×CR2450, ≥ 18 tháng | Mô hình khoảng 5 µA. Ngưỡng cho phép (thận trọng) 20,8 µA |
-| Bo tròn Ø32–35 mm, pin mặt sau | **Ø35 mm**, pin lệch tâm 3,5 mm (mục 1.3) |
+| Bo tròn Ø32–35 mm, pin mặt sau | **Ø35 mm**, pin lệch tâm 2,0 mm (mục 1.3; lý do ở mục 4.11) |
 | KiCad, Simplicity Studio + Matter extension | Studio v6, SiSDK 2026.6.2, Matter extension v2.9.2 (Matter 1.6) |
 | Nạp qua TC2030 | TC2030-NL đặt ngoài bóng pin |
 | 1 nút, 1 LED | Nút giữa bo (cổng B); LED đỏ/hổ phách |
@@ -59,12 +59,12 @@
 
 | # | Mâu thuẫn | Định lượng | Phương án đề xuất |
 |---|---|---|---|
-| 1 | **Bo Ø32–35 mm và anten** (pin che gần hết mặt sau) | Ø35 với pin lệch tâm 3,5 mm còn **dải 8,75 mm** không có pin. Ở Ø32 chỉ còn khoảng 7,25 mm, và kẹp MY-2450-03 (pad trải khoảng 30–32,5 mm) **gần như không vừa** | Chọn **Ø35** (cận trên). Nếu RF không đạt: **Ø38–40** (dải 10–12 mm). Hoặc đổi sang **CR2032** (Ø20, 225 mAh): mô hình vẫn khoảng 27 tháng (thận trọng) nhưng chịu xung kém hơn |
+| 1 | **Bo Ø32–35 mm và anten** (pin che gần hết mặt sau) | Ø35 với pin lệch tâm 2,0 mm còn **dải 7,25 mm** không có pin. Không lệch tâm hơn được vì thân kẹp MY-2450-03 (29,1 × 15,4 mm) khi đó thò ra ngoài mép bo. Ở Ø32 kẹp **không vừa** | Chọn **Ø35** (cận trên). Nếu RF không đạt: **Ø38–40** (dải 10–12 mm). Hoặc đổi sang **CR2032** (Ø20, 225 mAh): mô hình vẫn khoảng 27 tháng (thận trọng) nhưng chịu xung kém hơn |
 | 2 | **CR2450 và dòng đỉnh RF** | +10 dBm: khoảng 20,5 mA. Với R = 100 Ω (cuối đời/−20 °C), khung dài sụt **0,85 V** dù có 80 µF (mục 4.2) | **+8 dBm** mặc định, **+4 dBm** khi pin yếu/lạnh, tụ 2×100 µF, BLE 0…+4 dBm, cấm heater SHT4x |
 | 3 | **"Ưu tiên SSED"** và năng lượng | CSL 1 s: 14 µA. SED SIT 15 s: 5,1 µA. LIT: 3,9 µA | **Dùng SED/ICD**, không dùng SSED |
 | 4 | **"Spec mới nhất 1.5"** | 1.6 (06/2026), 1.6.1 (09/2026) đã ra | Nhắm 1.6.x qua extension v2.9.2 |
 | 5 | **Linh kiện 1 mặt** và đế pin mặt sau | Kẹp SMD ở mặt sau | PCBA 2 mặt, hoặc hàn tay kẹp. Bản THT: Keystone 3009 |
-| 6 | **TC2030 và pin mặt sau** | TC2030-NL vẫn cần 3 lỗ NPTH xuyên bo | Đặt TC2030 ở dải ngoài bóng pin (hướng 2 giờ) |
+| 6 | **TC2030 và pin mặt sau** | TC2030-NL vẫn cần 3 lỗ NPTH xuyên bo | Đặt TC2030 ở dải ngoài bóng pin và thân kẹp (hướng 11 giờ) |
 | 7 | **18 tháng** | Cho phép ≤ 20,8 µA (thận trọng); mô hình 5,1 µA | **Không mâu thuẫn.** Rủi ro nằm ở cấu hình firmware (các bẫy E/F, mục 6) và dòng rò |
 
 ## 1.4 Kiến trúc tổng thể
@@ -74,8 +74,8 @@
 CR2450 ─ P-MOSFET ─ VBAT ─┬─ 2×100 µF                              │
 (kẹp MY-2450-03)          ├─ EFR32MG24B010 (DC-DC 2,2 µH, HFXO 39 MHz, LFXO 32 kHz)
                           │     ├─ RF: phối hợp → π tinh chỉnh → anten chip (dải không pin)
-                          │     ├─ I2C1 → SHT40 trên lưỡi PCB có khe phay
-                          │     ├─ PBx ← nút (đánh thức EM2)   · GPIO → LED đỏ
+                          │     ├─ I2C1 (PC02/PC03) → SHT40 trên lưỡi PCB có khe phay
+                          │     ├─ PB01 ← nút (đánh thức EM2)  · PC01 → LED đỏ
                           │     ├─ IADC: AVDD/4 nội = áp pin (không cầu chia)
                           │     └─ SWD → TC2030-NL
                           └──────────────────────────────────────────┘

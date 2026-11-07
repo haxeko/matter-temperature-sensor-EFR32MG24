@@ -2,6 +2,7 @@
 
 > Nhãn: **[DS]** datasheet · **[DIST]** nhà phân phối (LCSC/JLCPCB API, 07/11/2026) · **[KN]** · **[TT]** · **[ĐOÁN]**.
 > BOM chi tiết: `hardware/bom.csv`. Sơ đồ bố trí: `hardware/floorplan.svg`.
+> **Project KiCad (schematic + PCB đã đặt linh kiện): `hardware/kicad/` — xem mục 4.11.**
 
 ## 4.1 Chọn cảm biến
 
@@ -124,10 +125,10 @@ MG24 RF2G4 ─ [mạng phối hợp SoC: L 2,5 nH · C 2,3 pF · L 1,7 nH · C 1
   - Linh kiện: LQP03HQ2N5B02D C237441, LQP03HQ1N7B02D C2041495 (LCSC chỉ còn 4 cái), GRM0335C1H2R3WA01D C710810, GRM0335C1H1R6WA01D C1864525, GRM0335C1H180JA01D C85892.
 - **Anten**: Johanson 2450AT18A100E (3,2×1,6 mm, C89334, tồn kho thấp) hoặc 2450AT18D0100002E (C17410360, 915 cái).
   - Đặt **ở mép bo, trong dải không có pin**, theo layout khuyến nghị của Johanson (vùng trống GND, đường feed).
-  - BRD2703A và BRD2601B của Silicon Labs cũng dùng anten chip. BRD4186C dùng inverted-F in trên PCB, nhưng IFA cần khoảng 20 mm chiều dài, không vừa dải 8,75 mm.
+  - BRD2703A và BRD2601B của Silicon Labs cũng dùng anten chip. BRD4186C dùng inverted-F in trên PCB, nhưng IFA cần khoảng 20 mm chiều dài, không vừa dải 7,25 mm.
 - **Vùng cấm đồng**: mọi lớp dưới và quanh anten. Không linh kiện, không via trong vùng. Khâu via GND dọc đường RF và mép vùng cấm, bước ≤ 2 mm.
 - **Ảnh hưởng của pin kim loại**: CR2450 là đĩa kim loại Ø24,5 mm, cách bo 1–2 mm, như một tấm phản xạ/mặt đất lệch tâm.
-  - Đẩy pin **lệch tâm 3,5 mm** về phía đối diện anten, để được dải 8,75 mm không pin.
+  - Đẩy pin **lệch tâm 2,0 mm** về phía đối diện anten, để được dải 7,25 mm không pin. Lệch 3,5 mm thì góc thân kẹp thò ra ngoài mép bo.
   - Anten cách mép bóng pin ≥ 3–5 mm.
   - Hai càng kẹp (+) của MY-2450-03 nằm ở vị trí khoảng 3 giờ và 9 giờ, xa anten (12 giờ).
 - **Ảnh hưởng của vỏ nhựa**: ABS/PC (εr ≈ 2,7–3,2) kéo tần số cộng hưởng xuống vài chục tới hơn 100 MHz, tuỳ khoảng cách [ĐOÁN về độ lớn].
@@ -158,15 +159,15 @@ Layout: thạch anh cách chân ≤ 2–3 mm, vòng GND bao quanh, không đi d�
 | L1 | Linh kiện, đường RF CPWG 50 Ω (bề rộng tính bằng impedance calculator của JLCPCB theo stack-up 4 lớp 0,8 mm đã chọn), dây tín hiệu ngắn |
 | L2 | **GND liền khối** (không cắt dưới RF/thạch anh), trừ vùng anten và lưỡi cảm biến |
 | L3 | VBAT, VDCDC, vài tín hiệu chậm |
-| L4 | GND + **pad (−) ENIG Ø8–10 mm** ở tâm pin + 2 pad kẹp (+) MY-2450-03 (tổng bề ngang pad 29,9 mm). **Kiểm lại footprint trong datasheet**: nếu 29,9 mm là tâm–tâm thì pad tràn mép bo khi pin lệch tâm 3,5 mm, phải giảm lệch tâm về khoảng 2 mm |
+| L4 | GND + **pad (−) ENIG Ø9 mm**, nối GND liền khối, ở tâm pin + 2 pad kẹp (+) MY-2450-03: 2,6 × 7,6 mm, **mép–mép 29,90 mm** (đã kiểm theo bản vẽ hãng) |
 
 2 lớp vẫn làm được, nhưng với chip trần có DC-DC và RF thì 4 lớp an toàn hơn nhiều. Các thiết kế tham chiếu của Silicon Labs đều 4 lớp [KN].
 
-**Xếp linh kiện trên bo tròn** (xem `hardware/floorplan.svg`):
-- Pin lệch tâm 3,5 mm về hướng 6 giờ.
-- 12 giờ: anten + vùng cấm. Ngay dưới là MG24 (QFN40), mạng phối hợp, HFXO, LFXO, cuộn DC-DC.
-- Khoảng 10 giờ: **lưỡi cảm biến**.
-- Khoảng 2 giờ: TC2030-NL, đặt ngoài bóng pin vì 3 lỗ NPTH định vị xuyên bo.
+**Xếp linh kiện trên bo tròn** (xem `hardware/floorplan.svg` và PCB trong `hardware/kicad/`):
+- Pin lệch tâm 2,0 mm về hướng 6 giờ.
+- 12 giờ: anten + vùng cấm. Ngay dưới là chuỗi phối hợp RF rồi MG24 (QFN40, xoay 180° để chân RF hướng lên anten). HFXO bên phải; LFXO, cuộn DC-DC, decoupling bên dưới.
+- Khoảng 2 giờ: **lưỡi cảm biến**. Chân I²C (PC02/PC03) của MG24 nằm ở phía này.
+- Khoảng 11 giờ: TC2030-NL, gần chân SWD (PA01–PA03). Đặt ngoài bóng pin và thân kẹp vì 3 lỗ NPTH định vị xuyên bo.
 - Tâm bo: nút bấm. LED cạnh nút.
 - Tụ dự trữ và MOSFET gần đường cấp từ kẹp (+).
 
@@ -192,10 +193,10 @@ CR2450 ─ Q1 ─┤ C1,C2 2×100µF  C3 10µF   AVDD   IOVDD   VREGVDD         
  (kẹp+/pad−) │                           │       │       │                          │
              │                     ┌─────┴───────┴───────┴──────┐  VREGSW ─ L1 2,2µH ─┐
              │                     │        EFR32MG24B010       │                     │
-             │  SHT40 ── I2C1 ─────┤ PCx/PCy                    │◄─ VDCDC (C4 10µF) ──┘
+             │  SHT40 ── I2C1 ─────┤ PC02/PC03                  │◄─ VDCDC (C4 4,7µF) ─┘
              │  (lưỡi PCB)         │                            │   → DVDD, RFVDD, PAVDD
-             │  SW1 ── PBx (EM2) ──┤                            │  DECOUPLE ─ C5 1µF
-             │  D1 ← R4 ← VBAT ────┤ PCz/PDz (sink)             │
+             │  SW1 ── PB01 (EM2) ─┤                            │  DECOUPLE ─ C10 1µF
+             │  D1 ← R4 ← VBAT ────┤ PC01 (sink)                │
              │                     │ HFXTAL ─ Y1 39 MHz         │
              │                     │ LFXTAL ─ Y2 32,768 kHz     │
              │  TC2030: VCC,SWDIO(PA02),nRESET,SWCLK(PA01),GND,SWO(PA03)
@@ -212,10 +213,12 @@ Chân cấp nguồn theo Figure 5.2 của datasheet: DVDD, RFVDD, PAVDD lấy t�
 | SWCLK / SWDIO / SWO | Cố định | PA01 / PA02 / PA03 |
 | nRESET | Chân reset | TC2030 chân 3 |
 | HFXO / LFXO | Chân thạch anh chuyên dụng | Theo datasheet QFN40 |
-| Nút | **Cổng A/B** (chỉ A/B đánh thức được từ EM2). Nên chọn chân có EM4WU nếu muốn chế độ "shipping" EM4 | PBx, pull-up nội |
-| I²C SHT40 | **I2C1** (domain PD1, tự tắt ở EM2) → cổng C/D | PCx/PCy |
-| LED | Bất kỳ, kéo xuống (sink) | Cổng C/D |
-| VCOM TX, PTI_DATA/PTI_FRAME | Chỉ prototype, ra pad test | Theo Pin Tool |
+| Nút | **Cổng A/B** (chỉ A/B đánh thức được từ EM2). Nên chọn chân có EM4WU nếu muốn chế độ "shipping" EM4 | **PB01** (EM4WU3), pull-up nội |
+| I²C SHT40 | **I2C1** (domain PD1, tự tắt ở EM2) → cổng C/D | **PC02 = SDA, PC03 = SCL** |
+| LED | Bất kỳ, kéo xuống (sink) | **PC01** |
+| VCOM TX/RX, PTI_DATA/PTI_FRAME | Chỉ prototype, ra pad test | **PA05/PA06**, **PC04/PC05** |
+| LFXO | LFXTAL_O/LFXTAL_I | **PD00/PD01** |
+| Không dùng (NC) | Để trống, cấu hình disabled | PC00, PC06, PC07, PB00, PB02–PB04, PA00, PA04, PA07, PA08, PD02, PD03 |
 
 ## 4.10 BOM (bản nháp v0.1, CHƯA chốt)
 
@@ -226,9 +229,9 @@ Biến thể **A = chip trần (khuyến nghị)**, **B = module MGM240S** (xem 
 | SoC | EFR32MG24B010F1536IM40-B (C6033375, 49 cái, 9,66 USD @100). Hoặc B210 QFN48 (C7271972) | LCSC tồn kho ít, giá cao. Mua số lượng ở nhà phân phối chính hãng (DigiKey B210 khoảng 5,68 USD @980) rồi gửi JLCPCB |
 | Cảm biến | SHT40-AD1B (C2848306) | |
 | Thạch anh | TZ3541C 39 MHz (C5360883), FC-12M 9 pF (C96341) | |
-| Nguồn | DMP2035U-7 (C110499), 2×CL31A107MQHNNNE (C15008), DFE2HCAH2R2MJ0L (C2043106), 2×10 µF 0603 (C19702), 1 µF (C52923), 100 nF (C1525) | |
+| Nguồn | DMP2035U-7 (C110499), 2×CL31A107MQHNNNE (C15008), DFE2HCAH2R2MJ0L (C2043106), 2×4,7 µF X7R 0603 TCC0603X7R475K6R3CT (C5360855), 1 µF (C52923), 100 nF (C1525) | Datasheet: CDCDC 4,7 µF X7R, CIN ≥ CDCDC |
 | RF | 2450AT18A100E (C89334), mạng phối hợp 0201 Murata (C237441, C2041495, C710810, C1864525, C85892), π 0 Ω (C17168) | Giá trị phối hợp **cần xác minh** |
-| Giao tiếp người dùng | TS-1088-AR02016 (C720477), APTD1608LSURCK (C5342734), 680 Ω (C25130) | |
+| Giao tiếp người dùng | C&K PTS815SJM250SMTRLFS (C2689510, footprint PTS810/815), APTD1608LSURCK (C5342734), 680 Ω (C25130) | |
 | Pin | Kẹp MY-2450-03 (C2988622) + pad ENIG | Mặt sau: PCBA 2 mặt hoặc hàn tay |
 | Debug | Footprint TC2030-NL + pad test | |
 
@@ -238,3 +241,53 @@ Biến thể **A = chip trần (khuyến nghị)**, **B = module MGM240S** (xem 
 - Hầu hết linh kiện là "Extended", phí khoảng 3 USD/mã/lô.
 - Linh kiện RF 0201 và QFN40 0,4 mm lắp được.
 - Kẹp pin ở mặt sau cần PCBA 2 mặt. Cách khác: dùng bản THT (Keystone 3009, C238101) hàn tay.
+
+## 4.11 Project KiCad (`hardware/kicad/`)
+
+**Trạng thái v0.1 (07/11/2026)**
+
+| Hạng mục | Trạng thái |
+|---|---|
+| Schematic `tsensor.kicad_sch` (A3, 1 trang, 7 khối) | **Xong.** Netlist xuất bằng `kicad-cli` khớp 100 % với `design.py`: 122 chân, 29 net, 14 chân NC, có PWR_FLAG |
+| Thư viện riêng `lib/` | Symbol EFR32MG24B010F1536IM40 theo Table 6.3 datasheet. Footprint QFN40 theo land pattern Table 7.2 (pad 0,74 × 0,22 mm, EP 3,85 mm, kem 3×3 ô 0,9 mm, 4 via GND). Kẹp MY-2450-03 (pad mép–mép 29,90 mm) + pad (−) Ø9 mm |
+| PCB `tsensor.kicad_pcb` | Viền Ø35 mm có lưỡi cảm biến, 2 khe 0,8 mm. Stack-up 4 lớp 0,8 mm, ENIG. 40 linh kiện đã đặt, net đã gán. Zone GND (F.Cu/In1/B.Cu) + VBAT (In2). Vùng cấm anten và lưỡi. Via khâu GND quanh mép |
+| DRC (pcbnew 7) | **0 lỗi**. Còn 59 "unconnected" (chưa đi dây) và 2 cảnh báo vùng VBAT ở In2 chưa có via (hết khi đi dây) |
+| Đi dây | **CHƯA**. Đây là việc tiếp theo |
+| File xuất sẵn | `plots/tsensor_schematic.pdf`, `plots/pcb_front.svg`, `plots/pcb_back.svg`, `build/bom_jlcpcb.csv`, `build/cpl_positions.csv`, `build/drc_report.txt` |
+
+**Mở bằng** KiCad ≥ 7. File ở định dạng KiCad 7; KiCad 8/9 sẽ nâng cấp khi lưu.
+- Footprint chuẩn lấy từ thư viện mặc định của KiCad.
+- Thư viện riêng nạp tự động qua `sym-lib-table` và `fp-lib-table` của project.
+
+**Sinh lại**: `tools/kicad_gen/build.sh` (cần KiCad 7 có module Python `pcbnew`).
+- Script **ghi đè** schematic và PCB.
+- Khi đã bắt đầu sửa tay trong KiCad, coi file KiCad là nguồn chính, không chạy lại generator.
+
+**Lệch tâm pin 2,0 mm** (không phải 3,5 mm như floorplan khái niệm ban đầu):
+- Thân kẹp MY-2450-03 dài 29,1 × 15,4 mm. Ở lệch tâm 3,5 mm, góc thân kẹp thò ra ngoài mép bo khoảng 0,9 mm.
+- Ở 2,0 mm, góc kẹp chạm khít mép bo (thành vỏ phải chừa chỗ). Dải không pin cho anten còn 7,25 mm, vùng cấm anten (y < −14,4 mm) vẫn cách mép bóng pin 4,15 mm.
+
+**Việc cần làm khi đi dây** (theo thứ tự):
+1. **Xác minh trước khi đi dây**:
+   - giá trị mạng phối hợp RF cho QFN40 (AN930.2);
+   - tụ decoupling từng chân theo schematic tham chiếu của Silicon Labs;
+   - chân SOT-23 của DMP2035U (G = 1, S = 2, D = 3);
+   - chân TZ3541C (1/3 = thạch anh, 2/4 = GND).
+2. Chọn stack-up thật của JLCPCB cho 4 lớp 0,8 mm. Tính bề rộng CPWG 50 Ω bằng impedance calculator, sửa netclass **RF** (đang tạm 0,2 mm) và chỉnh lại dielectric trong Board Setup.
+3. **Đi RF trước**:
+   - Chuỗi RF2G4_IO → L2 → (C11) → L3 → (C12) → C13 → (C14) → R1 → (C15) → pad 1 của ANT1.
+   - Đi trên F.Cu, ngắn nhất, khâu via GND hai bên mỗi ≤ 2 mm.
+   - Tụ shunt xuống In1 bằng via riêng.
+4. **HFXO/LFXO**: đường ngắn, không chạy tín hiệu khác qua hay dưới thạch anh.
+5. **DC-DC**: vòng VREGSW → L1 → C4 → VREGVSS nhỏ nhất, via GND sát C4.
+6. **Decoupling**: tụ sát chân. Via **VBAT** xuống In2 (nối vùng VBAT), via GND xuống In1.
+7. **Lưỡi cảm biến**: 4 dây 0,15 mm trên F.Cu. Không đặt via trong vùng cấm.
+8. Chạy DRC tới khi hết "unconnected". Kiểm tra vùng cấm anten không còn đồng.
+
+**Đặt hàng JLCPCB**:
+- **PCB**: 4 lớp, 0,8 mm, ENIG, stack-up kiểm soát trở kháng. Viền tròn có khe phay 0,8 mm.
+- **PCBA**: 2 mặt (kẹp pin ở mặt sau), hoặc 1 mặt rồi hàn tay kẹp.
+  - BOM: `build/bom_jlcpcb.csv` (đã bỏ linh kiện DNP; TC2030 chỉ là footprint, không có linh kiện).
+  - CPL: `build/cpl_positions.csv`. Đổi tên cột thành Designator / Mid X / Mid Y / Layer / Rotation và **kiểm tra góc xoay** trên trình xem của JLCPCB. QFN, SOT-23 và thạch anh hay lệch 90°/180°.
+- Bo nhỏ: thường cần panel/rail cho PCBA. Để JLCPCB thêm, hoặc tự panel hoá.
+- Nhiều mã là Extended. MG24 và LQP03HQ1N7B02D tồn kho LCSC rất ít, nên đặt trước hoặc ký gửi.

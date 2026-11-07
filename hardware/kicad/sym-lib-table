@@ -1,0 +1,4 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "tsensor")(type "KiCad")(uri "${KIPRJMOD}/lib/tsensor.kicad_sym")(options "")(descr "Thư viện riêng của dự án"))
+)

@@ -1,5 +1,6 @@
-# Build outputs
-build/
+# Build outputs (hardware/kicad/build/ được giữ lại: BOM, CPL, DRC, netlist)
+/build/
+firmware/**/build/
 cmake-build-*/
 __pycache__/
 *.pyc

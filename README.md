@@ -4,7 +4,7 @@ Thiết kế sơ bộ (v0.1) cho một cảm biến nhiệt độ và độ ẩm
 - Matter 1.6 over Thread, thiết bị ICD ngủ, commissioning qua BLE.
 - Bo tròn Ø35 mm, nạp qua Tag-Connect TC2030.
 
-> **Trạng thái:** đã có kiến trúc, phân tích và tài liệu thiết kế. **BOM chưa chốt** — xem [Câu hỏi mở](#câu-hỏi-mở-cần-trả-lời-trước-khi-chốt-bom).
+> **Trạng thái:** đã có kiến trúc, tài liệu thiết kế và **project KiCad**: schematic hoàn chỉnh, PCB đã đặt linh kiện, **chưa đi dây**. **BOM chưa chốt** — xem [Câu hỏi mở](#câu-hỏi-mở-cần-trả-lời-trước-khi-chốt-bom).
 > Dữ liệu tra cứu ngày 07/11/2026.
 > Nhãn trong tài liệu: **[SPEC]** bắt buộc theo spec · **[SDK]** đã đối chiếu mã nguồn · **[KN]** khuyến nghị · **[TT]** kinh nghiệm thực tế · **[ĐOÁN]** suy đoán.
 
@@ -21,6 +21,7 @@ Thiết kế sơ bộ (v0.1) cho một cảm biến nhiệt độ và độ ẩm
 | Nguồn | P-MOSFET DMP2035U (chống ngược) + 2×100 µF + DC-DC nội; TX +8 dBm, +4 dBm khi pin yếu/lạnh | CR2450 không chịu +10 dBm cố định ở cuối đời/lạnh |
 | Đo pin | IADC đo AVDD/4 nội (không cầu chia) + thuật toán lai: đếm điện tích + áp | Rò = 0; % pin không "đứng 100 % rồi rơi" |
 | OTA | Bật; lưu trong flash nội (GBL nén LZMA) | Không cần SPI flash; EM2 thấp hơn |
+| PCB | Ø35 mm, 4 lớp 0,8 mm ENIG; pin lệch tâm 2,0 mm; lưỡi cảm biến 2 khe ở hướng 2 giờ; TC2030 ở 11 giờ | Thân kẹp MY-2450-03 không cho lệch tâm hơn 2 mm (mục 4.11) |
 | Năng lượng | Mô hình khoảng **5,1 µA** (SIT) / 3,9 µA (LIT). **Cho phép ≤ 20,8 µA** cho 18 tháng (thận trọng) | Biên gấp khoảng 4 lần. Rủi ro nằm ở cấu hình firmware, không ở phần cứng |
 
 ## Tài liệu (đi theo đúng thứ tự yêu cầu)
@@ -36,9 +37,17 @@ Thiết kế sơ bộ (v0.1) cho một cảm biến nhiệt độ và độ ẩm
 | 7 | [docs/07-test-plan.md](docs/07-test-plan.md) | Kế hoạch kiểm thử: bring-up, Matter, RF, dòng, độ chính xác, hệ sinh thái; tiêu chí "đóng băng" thiết kế |
 
 Tệp đi kèm:
+- [`hardware/kicad/`](hardware/kicad): **project KiCad** (mở bằng KiCad ≥ 7):
+  - `tsensor.kicad_sch` (schematic A3);
+  - `tsensor.kicad_pcb` (Ø35 mm 4 lớp, đã đặt linh kiện, zone, vùng cấm; **chưa đi dây**);
+  - `lib/` (symbol EFR32MG24 QFN40, footprint QFN40 và kẹp pin);
+  - `plots/` (PDF schematic, SVG PCB hai mặt);
+  - `build/` (BOM JLCPCB, CPL, báo cáo DRC, netlist).
+  - Chi tiết và việc cần làm khi đi dây: mục 4.11.
 - [`hardware/bom.csv`](hardware/bom.csv): BOM nháp v0.1 có mã LCSC đã kiểm (07/11/2026). Biến thể A = chip trần, B = MGM240S.
-- [`hardware/floorplan.svg`](hardware/floorplan.svg): bố trí đề xuất trên bo Ø35 mm theo tỉ lệ (anten, lưỡi cảm biến, TC2030, kẹp pin).
+- [`hardware/floorplan.svg`](hardware/floorplan.svg): bố trí theo tỉ lệ, khớp PCB v0.1 (anten, lưỡi cảm biến, TC2030, kẹp pin).
 - [`tools/power_budget.py`](tools/power_budget.py): mô hình năng lượng có tham số, kịch bản và phân tích độ nhạy.
+- [`tools/kicad_gen/`](tools/kicad_gen): bộ sinh project KiCad từ `design.py` (nguồn dữ liệu duy nhất cho linh kiện, net, vị trí), có kiểm tra netlist và DRC.
 - [`firmware/app-logic/`](firmware/app-logic): logic firmware không phụ thuộc phần cứng, có test chạy trên host:
   - driver SHT4x (CRC, chuyển đổi);
   - chính sách báo cáo (vùng chết hai tầng);
@@ -49,6 +58,7 @@ Tệp đi kèm:
 python3 tools/power_budget.py --sensitivity            # ngân sách năng lượng
 python3 tools/power_budget.py --markdown               # bảng Markdown
 cmake -S firmware/app-logic -B build && cmake --build build && ctest --test-dir build   # 102 kiểm tra
+tools/kicad_gen/build.sh   # sinh lại project KiCad + kiểm netlist + DRC (cần KiCad 7, GHI ĐÈ file KiCad)
 ```
 
 ## Câu hỏi mở (cần trả lời trước khi chốt BOM)
@@ -80,6 +90,6 @@ cmake -S firmware/app-logic -B build && cmake --build build && ctest --test-dir 
 
 - Giá trị mạng phối hợp RF cho **QFN40** (AN930.2 / schematic tham chiếu). Số hiện tại lấy từ BRD4186C (QFN48).
 - Tụ decoupling cho từng chân nguồn MG24: chép đúng schematic tham chiếu Silicon Labs.
-- Footprint kẹp MY-2450-03: khoảng 29,9 mm là tâm–tâm hay mép–mép.
+- Chân SOT-23 của DMP2035U (G = 1, S = 2, D = 3) và chân thạch anh TZ3541C (1/3 = thạch anh, 2/4 = GND).
 - SiSDK có tự chuyển DC-DC sang bypass khi VBAT < 2,2–2,3 V không.
 - Đường cong áp→% của CR2450 trong `battery_estimator.h` là **giả định** và phải thay bằng số đo.
