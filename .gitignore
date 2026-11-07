@@ -1,0 +1,11 @@
+# Build outputs
+build/
+cmake-build-*/
+__pycache__/
+*.pyc
+
+# Simplicity Studio / KiCad local files
+.metadata/
+*.kicad_prl
+*-backups/
+fp-info-cache
