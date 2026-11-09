@@ -317,7 +317,10 @@ def build(kicad_dir: Path, netlist: str) -> Path:
     bld.text("SWD", -11.6, -6.9, 0.6, angle=35)
     bld.text("TSENSOR v0.1", 0.0, 13.2, 0.8)
     bld.text("MG24 Matter T/RH", 0.0, 14.4, 0.6)
-    bld.text("CR2450 (+)", 0.0, -6.6, 1.0, pcbnew.B_SilkS, mirror=True)
+    # Chữ mặt sau (vùng giữa lỗ TC2030 và thân kẹp pin)
+    for txt, y, size in (("Matter temperature Sensor", -9.0, 0.65), ("Villa Nest", -7.9, 0.8),
+                         ("Made in Vietnam", -6.7, 0.65)):
+        bld.text(txt, 0.0, y, size, pcbnew.B_SilkS, mirror=True)
     bld.text("ANT KEEPOUT", -6.0, -15.2, 0.5, pcbnew.Cmts_User)
 
     pcbnew.SaveBoard(str(pcb_path), board)
