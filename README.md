@@ -5,7 +5,7 @@ Thiết kế sơ bộ (v0.1) cho một cảm biến nhiệt độ và độ ẩm
 - Bo tròn Ø35 mm, nạp qua Tag-Connect TC2030.
 
 > **Trạng thái:** đã có kiến trúc, tài liệu thiết kế và **project KiCad**: schematic hoàn chỉnh, PCB đã đặt linh kiện, **chưa đi dây**. **BOM chưa chốt** — xem [Câu hỏi mở](#câu-hỏi-mở-cần-trả-lời-trước-khi-chốt-bom).
-> Dữ liệu tra cứu ngày 07/11/2026.
+> Dữ liệu tra cứu ngày 07/11/2026; bố cục PCB cập nhật 10/11/2026 (anten đồng trên PCB, cảm biến ở mép dưới, nút TS-1088, chữ in mặt sau).
 > Nhãn trong tài liệu: **[SPEC]** bắt buộc theo spec · **[SDK]** đã đối chiếu mã nguồn · **[KN]** khuyến nghị · **[TT]** kinh nghiệm thực tế · **[ĐOÁN]** suy đoán.
 
 ## Quyết định chính
@@ -21,7 +21,8 @@ Thiết kế sơ bộ (v0.1) cho một cảm biến nhiệt độ và độ ẩm
 | Nguồn | P-MOSFET DMP2035U (chống ngược) + 2×100 µF + DC-DC nội; TX +8 dBm, +4 dBm khi pin yếu/lạnh | CR2450 không chịu +10 dBm cố định ở cuối đời/lạnh |
 | Đo pin | IADC đo AVDD/4 nội (không cầu chia) + thuật toán lai: đếm điện tích + áp | Rò = 0; % pin không "đứng 100 % rồi rơi" |
 | OTA | Bật; lưu trong flash nội (GBL nén LZMA) | Không cần SPI flash; EM2 thấp hơn |
-| PCB | Ø35 mm, 4 lớp 0,8 mm ENIG; pin lệch tâm 2,0 mm; lưỡi cảm biến 2 khe ở hướng 2 giờ; TC2030 ở 11 giờ | Thân kẹp MY-2450-03 không cho lệch tâm hơn 2 mm (mục 4.11) |
+| Anten | **IFA đồng trên PCB** (chép TI AN043, 15,2 × 5,7 mm) ở mép trên + mạng π tinh chỉnh | Không tốn linh kiện, không lo tồn kho; vừa dải 7,25 mm không pin. **Phải tinh chỉnh bằng VNA** (mục 4.5) |
+| PCB | Ø35 mm, 4 lớp 0,8 mm ENIG; pin lệch tâm 2,0 mm; anten ở 12 giờ; lưỡi cảm biến 2 khe ở **6 giờ** (SHT40 ở mép dưới); TC2030 ở 10 giờ; nút SMD 3,9 × 3 mm 2 chân (TS-1088) | Thân kẹp MY-2450-03 không cho lệch tâm hơn 2 mm (mục 4.11) |
 | Năng lượng | Mô hình khoảng **5,1 µA** (SIT) / 3,9 µA (LIT). **Cho phép ≤ 20,8 µA** cho 18 tháng (thận trọng) | Biên gấp khoảng 4 lần. Rủi ro nằm ở cấu hình firmware, không ở phần cứng |
 
 ## Tài liệu (đi theo đúng thứ tự yêu cầu)
@@ -84,12 +85,13 @@ tools/kicad_gen/build.sh   # sinh lại project KiCad + kiểm netlist + DRC (c�
    - In 3D hay ép nhựa?
    - Đặt bàn hay dán tường?
    - Có nam châm hoặc tấm kim loại (ảnh hưởng anten) không?
-10. **Ngân sách BOM** mục tiêu mỗi chiếc. Hiện ước tính khoảng 14 USD @100 ở LCSC, khoảng 9–10 USD @1k ở nhà phân phối chính hãng.
+10. **Ngân sách BOM** mục tiêu mỗi chiếc. Hiện ước tính khoảng 12,7 USD @100 ở LCSC, khoảng 8,5–9,5 USD @1k ở nhà phân phối chính hãng (anten là đồng trên PCB nên không tốn tiền).
 
 ## Những điểm phải xác minh trước khi đặt mạch
 
 - Giá trị mạng phối hợp RF cho **QFN40** (AN930.2 / schematic tham chiếu). Số hiện tại lấy từ BRD4186C (QFN48).
 - Tụ decoupling cho từng chân nguồn MG24: chép đúng schematic tham chiếu Silicon Labs.
 - Chân SOT-23 của DMP2035U (G = 1, S = 2, D = 3) và chân thạch anh TZ3541C (1/3 = thạch anh, 2/4 = GND).
+- Anten IFA chép từ TI AN043 nhưng đặt trên bo khác (mặt đất Ø35 mm, pin kim loại, vỏ): đo S11 (T3.1), chỉnh mạng π, nếu cần thì sửa chiều dài nhánh hở.
 - SiSDK có tự chuyển DC-DC sang bypass khi VBAT < 2,2–2,3 V không.
 - Đường cong áp→% của CR2450 trong `battery_estimator.h` là **giả định** và phải thay bằng số đo.

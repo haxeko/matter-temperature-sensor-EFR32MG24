@@ -3,8 +3,9 @@
 Sinh tsensor.kicad_pcb (KiCad 7) từ design.py + netlist do KiCad xuất từ schematic.
 Chạy bằng Python có module pcbnew (cài KiCad):
     python3 tools/kicad_gen/gen_pcb.py hardware/kicad <tsensor.net>
-Kết quả: bo Ø35 mm 4 lớp 0,8 mm, viền có lưỡi cảm biến, linh kiện đã đặt theo floorplan,
-net đã gán, zone GND (F.Cu, In1.Cu, B.Cu) + VBAT (In2.Cu), vùng cấm anten/lưỡi, via khâu GND.
+Kết quả: bo Ø35 mm 4 lớp 0,8 mm, viền có lưỡi cảm biến (hướng 6 giờ), anten IFA đồng trên PCB
+(mép trên, hướng 12 giờ), linh kiện đã đặt theo floorplan, net đã gán, zone GND (F.Cu, In1.Cu, B.Cu)
++ VBAT (In2.Cu), vùng cấm anten/lưỡi, via khâu GND (tự lọc theo pad, courtyard, vùng cấm, chữ silk).
 CHƯA đi dây — phần đó làm trong KiCad (đặc biệt đường RF 50 Ω).
 """
 from __future__ import annotations
@@ -103,6 +104,7 @@ class Builder:
     def __init__(self, board: pcbnew.BOARD) -> None:
         self.b = board
         self.nets: dict[str, pcbnew.NETINFO_ITEM] = {}
+        self.texts: list = []
 
     def net(self, name: str) -> pcbnew.NETINFO_ITEM:
         if name not in self.nets:
@@ -177,6 +179,7 @@ class Builder:
                 fp.SetProperty(k, v)
         if part["dnp"]:
             fp.SetProperty("DNP", "DNP")
+        if part["dnp"] or part["virtual"]:   # virtual = anten đồng trên PCB, không phải linh kiện lắp ráp
             fp.SetAttributes(fp.GetAttributes() | pcbnew.FP_EXCLUDE_FROM_POS_FILES | pcbnew.FP_EXCLUDE_FROM_BOM)
         # Bo nhỏ, dày linh kiện: tham chiếu đặt ở lớp Fab (in bản vẽ lắp ráp), silk chỉ giữ chữ chức năng
         ref = fp.Reference()
@@ -243,6 +246,7 @@ class Builder:
 
     def text(self, s, x, y, size=0.8, layer=pcbnew.F_SilkS, mirror=False, angle=0.0):
         t = pcbnew.PCB_TEXT(self.b)
+        self.texts.append(t)
         t.SetText(s)
         t.SetPosition(P(x, y))
         t.SetLayer(layer)
@@ -251,6 +255,57 @@ class Builder:
         t.SetMirrored(mirror)
         t.SetTextAngleDegrees(angle)
         self.b.Add(t)
+
+    # --- via khâu GND tự lọc ------------------------------------------------
+    def stitch_vias(self, cands, via_d=0.45, clr=0.25, min_pitch=1.2):
+        """Đặt via GND tại các điểm ứng viên không vướng: pad của mọi footprint, courtyard (trừ footprint
+        ảo như anten PCB), đồng của anten, vùng cấm (rule area), chữ silk, mép bo. Trả về danh sách điểm đã đặt."""
+        r = via_d / 2
+        virtual_refs = {p["ref"] for p in D.PARTS if p["virtual"]}
+        boxes, polys = [], []
+        for fp in self.b.GetFootprints():
+            for pad in fp.Pads():
+                boxes.append(box_mm(pad.GetBoundingBox()))
+            if fp.GetReference() in virtual_refs:
+                boxes += [box_mm(g.GetBoundingBox()) for g in fp.GraphicalItems() if g.IsOnLayer(pcbnew.F_Cu)]
+                continue
+            fp.BuildCourtyardCaches()
+            for lyr in (pcbnew.F_CrtYd, pcbnew.B_CrtYd):
+                poly = fp.GetCourtyard(lyr)
+                if poly.OutlineCount():
+                    polys.append((poly, MM(r)))
+        for z in self.b.Zones():
+            if z.GetIsRuleArea():
+                polys.append((z.Outline(), MM(r + 0.05)))
+        boxes += [box_mm(t.GetBoundingBox()) for t in self.texts
+                  if t.GetLayer() in (pcbnew.F_SilkS, pcbnew.B_SilkS)]
+        placed = []
+        for x, y in cands:
+            if math.hypot(x, y) > D.BOARD_R - 0.5 - r:
+                continue
+            if any(box_dist(b, x, y) < r + clr for b in boxes):
+                continue
+            if any(poly.Collide(P(x, y), c) for poly, c in polys):
+                continue
+            if any(math.hypot(x - u, y - v) < min_pitch for u, v in placed):
+                continue
+            self.via(x, y)
+            placed.append((x, y))
+        return placed
+
+
+def box_mm(bb) -> tuple:
+    """BOX2I (toạ độ trang, nm) -> (x0, y0, x1, y1) mm so với tâm bo."""
+    o, e = bb.GetOrigin(), bb.GetEnd()
+    xs = sorted((pcbnew.ToMM(o.x) - OX, pcbnew.ToMM(e.x) - OX))
+    ys = sorted((pcbnew.ToMM(o.y) - OY, pcbnew.ToMM(e.y) - OY))
+    return xs[0], ys[0], xs[1], ys[1]
+
+
+def box_dist(b, x, y) -> float:
+    dx = max(b[0] - x, 0.0, x - b[2])
+    dy = max(b[1] - y, 0.0, y - b[3])
+    return math.hypot(dx, dy)
 
 
 def circle_pts(r, n=72, a0=0.0, a1=2 * math.pi):
@@ -282,7 +337,8 @@ def build(kicad_dir: Path, netlist: str) -> Path:
     allcu = pcbnew.LSET()
     for lyr in (pcbnew.F_Cu, pcbnew.In1_Cu, pcbnew.In2_Cu, pcbnew.B_Cu):
         allcu.AddLayer(lyr)
-    # Vùng cấm đồng anten: đoạn tròn y < ANT_KEEPOUT_Y (cho phép đường feed, cấm via/đổ đồng)
+    # Vùng cấm anten PCB: đoạn tròn y < ANT_KEEPOUT_Y trên mọi lớp đồng (cấm đổ đồng, via và track).
+    # Đồng của anten là hình vẽ trong footprint ANT1 nên không bị luật này chặn.
     yk = D.ANT_KEEPOUT_Y
     rk = R + 0.5
     xk = math.sqrt(rk * rk - yk * yk)
@@ -291,37 +347,37 @@ def build(kicad_dir: Path, netlist: str) -> Path:
         a1 += 2 * math.pi
     ant = [(-xk, yk)] + [(rk * math.cos(a0 + (a1 - a0) * k / 24), rk * math.sin(a0 + (a1 - a0) * k / 24))
                          for k in range(1, 24)] + [(xk, yk)]
-    bld.poly_zone(ant, allcu, name="KEEPOUT_ANTENNA", rule={"vias": True, "tracks": False})
-    # Vùng cấm đổ đồng/via trên lưỡi cảm biến (cách nhiệt)
+    bld.poly_zone(ant, allcu, name="KEEPOUT_ANTENNA", rule={"vias": True, "tracks": True})
+    # Rãnh F.Cu quanh hai chân anten (feed + nối đất): không đổ GND mặt trên; chân đất nối In1/B.Cu qua via
+    nx0, nx1 = D.ANT_LEG_NOTCH_X
+    ny1 = yk + D.ANT_LEG_NOTCH_DEPTH
+    bld.poly_zone([(nx0, yk - 0.2), (nx1, yk - 0.2), (nx1, ny1), (nx0, ny1)], pcbnew.F_Cu,
+                  name="NOTCH_ANT_LEGS_FCU", rule={"vias": True, "tracks": False})
+    # Vùng cấm đổ đồng/via trên lưỡi cảm biến (cách nhiệt); cho phép 4 đường tín hiệu
     T = bld.tongue_T
     hw = D.TONGUE_HALF_W + D.SLOT_W
     tongue = [T(D.SLOT_INNER - 0.6, -hw), T(R + 0.6, -hw), T(R + 0.6, hw), T(D.SLOT_INNER - 0.6, hw)]
     bld.poly_zone(tongue, allcu, name="KEEPOUT_SENSOR_TONGUE", rule={"vias": True, "tracks": False})
 
-    # Via khâu GND quanh mép bo (tránh anten, lưỡi, TC2030, pad kẹp pin) và dọc mép vùng cấm anten
-    skip = [(-140, -50), (-60, -10), (205, 255), (-25, 40), (140, 205)]
-    for deg in range(0, 360, 12):
-        d = deg if deg <= 180 else deg - 360
-        if any(lo <= d <= hi for lo, hi in skip) or any(lo <= deg <= hi for lo, hi in skip):
-            continue
-        r = 16.3
-        bld.via(r * math.cos(math.radians(deg)), r * math.sin(math.radians(deg)))
-    for x in (-9.0, -7.5, -4.5, -3.0, 5.0, 6.5, 8.0, 9.5):   # bỏ x=-6 (trùng lỗ định vị TC2030)
-        bld.via(x, yk + 0.55)
-
-    # Chữ trên silk (chức năng pad test, cổng debug)
+    # Chữ trên silk mặt trước: chức năng pad test, cổng debug, phiên bản
+    pos = {p["ref"]: p["pcb"] for p in D.PARTS}
     for ref, label, dx, dy in (("TP1", "VBAT", 0, 1.3), ("TP2", "GND", 0, 1.3), ("TP3", "TX", 1.6, 0),
                                ("TP4", "RX", 1.6, 0), ("TP5", "PTI-D", 0, 1.3), ("TP6", "PTI-F", 0, 1.3)):
-        part = next(p for p in D.PARTS if p["ref"] == ref)
-        bld.text(label, part["pcb"][0] + dx, part["pcb"][1] + dy, 0.6)
-    bld.text("SWD", -11.6, -6.9, 0.6, angle=35)
-    bld.text("TSENSOR v0.1", 0.0, 13.2, 0.8)
-    bld.text("MG24 Matter T/RH", 0.0, 14.4, 0.6)
-    # Chữ mặt sau (vùng giữa lỗ TC2030 và thân kẹp pin)
-    for txt, y, size in (("Matter temperature Sensor", -9.0, 0.65), ("Villa Nest", -7.9, 0.8),
-                         ("Made in Vietnam", -6.7, 0.65)):
+        bld.text(label, pos[ref][0] + dx, pos[ref][1] + dy, 0.6)
+    bld.text("SWD", pos["J1"][0], pos["J1"][1] + 2.7, 0.6)      # ngay dưới courtyard TC2030
+    bld.text("v0.1", 12.2, 9.0, 0.6)
+    # Chữ mặt sau: dải trăng khuyết phía trên pin (sau lưng anten) — không bị pin che, không có đồng
+    for txt, y, size in (("Temperature sensor", -14.7, 0.95), ("Design by Haxeko", -13.25, 0.8),
+                         ("Made in Vietnam", -12.0, 0.8)):
         bld.text(txt, 0.0, y, size, pcbnew.B_SilkS, mirror=True)
-    bld.text("ANT KEEPOUT", -6.0, -15.2, 0.5, pcbnew.Cmts_User)
+    bld.text("ANT KEEPOUT", 4.0, -11.2, 0.5, pcbnew.Cmts_User)
+
+    # Via khâu GND: ứng viên quanh mép bo (r = 16,3 mm, bước 10°) và dọc mép mặt đất của anten,
+    # lọc tự động (tránh pad, courtyard, kẹp pin, lỗ TC2030, đồng anten, vùng cấm, chữ silk)
+    cands = [(16.3 * math.cos(math.radians(d)), 16.3 * math.sin(math.radians(d))) for d in range(0, 360, 10)]
+    cands += [(-15.0 + 1.5 * k, yk + 0.55) for k in range(21)]
+    placed = bld.stitch_vias(cands)
+    print(f"Via khâu GND: {len(placed)} via")
 
     pcbnew.SaveBoard(str(pcb_path), board)
     return pcb_path

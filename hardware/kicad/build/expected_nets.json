@@ -1,6 +1,6 @@
 {
  "ANT1.1": "ANT_FEED",
- "ANT1.2": null,
+ "ANT1.2": "GND",
  "BT1.1": "BAT_P",
  "BT1.2": "GND",
  "C1.1": "VBAT",

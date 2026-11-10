@@ -116,24 +116,54 @@ CR2450(+) ──► D ┌──────┐ S ──► VBAT (sau bảo vệ)
 
 ## 4.5 Mạch RF và anten
 
-### Lựa chọn: anten chip + mạng phối hợp có chỗ tinh chỉnh
+### Lựa chọn: anten IFA đồng trên PCB + mạng phối hợp có chỗ tinh chỉnh
 ```
 MG24 RF2G4 ─ [mạng phối hợp SoC: L 2,5 nH · C 2,3 pF · L 1,7 nH · C 1,6 pF] ─ DC-block 18 pF
-            ─ CPWG 50 Ω ngắn ─ [π tinh chỉnh: shunt(DNP) · series 0 Ω · shunt(DNP)] ─ Johanson 2450AT18A100E
+            ─ CPWG 50 Ω ngắn ─ [π tinh chỉnh: shunt(DNP) · series 0 Ω · shunt(DNP)] ─ anten IFA đồng trên PCB
 ```
 - **Giá trị mạng phối hợp SoC** lấy theo BRD4186C. Số liệu đọc từ trích đoạn manual, **phải đối chiếu AN930.2/schematic** cho đúng gói QFN40 trước khi chốt.
   - Linh kiện: LQP03HQ2N5B02D C237441, LQP03HQ1N7B02D C2041495 (LCSC chỉ còn 4 cái), GRM0335C1H2R3WA01D C710810, GRM0335C1H1R6WA01D C1864525, GRM0335C1H180JA01D C85892.
-- **Anten**: Johanson 2450AT18A100E (3,2×1,6 mm, C89334, tồn kho thấp) hoặc 2450AT18D0100002E (C17410360, 915 cái).
-  - Đặt **ở mép bo, trong dải không có pin**, theo layout khuyến nghị của Johanson (vùng trống GND, đường feed).
-  - BRD2703A và BRD2601B của Silicon Labs cũng dùng anten chip. BRD4186C dùng inverted-F in trên PCB, nhưng IFA cần khoảng 20 mm chiều dài, không vừa dải 7,25 mm.
-- **Vùng cấm đồng**: mọi lớp dưới và quanh anten. Không linh kiện, không via trong vùng. Khâu via GND dọc đường RF và mép vùng cấm, bước ≤ 2 mm.
+- **Anten: inverted-F uốn khúc (meander IFA) vẽ bằng đồng ở mép trên của bo**. Kích thước chép đúng TI AN043 (SWRA117D, Figure 3 và Table 1: anten của dongle USB CC2511):
+  - Khối 15,2 × 5,7 mm. Vết đồng 0,5 mm, chân nối đất 0,9 mm. L1 3,94 · L2 2,70 · L3 5,00 · L4 2,64 · L5 2,00 · L6 4,90 · D5 1,40 · D6 1,70 mm.
+  - Các khúc uốn và đầu hở hướng **lên mép trên** (12 giờ).
+    - Tâm bo là gốc toạ độ. Mép mặt đất ở y = −10,1 mm, đỉnh anten ở y = −15,5 mm.
+    - Góc trên của anten cách mép bo 0,41 mm (DRC của project yêu cầu ≥ 0,3 mm).
+  - **Mặt đất tham chiếu là lớp 2 (In1.Cu)**, đúng hình gốc của TI ("Ground Layer 2").
+    - Hai chân thò xuống D4 = 0,5 mm vào vùng mặt đất.
+    - **Chân trái (0,9 mm) nối đất bằng via** (pad 2). **Chân phải (0,5 mm) là điểm feed** (pad 1).
+  - Trên F.Cu khoét rãnh không đổ GND quanh hai chân (cách 0,3 mm), để GND mặt trên không chạm chân feed.
+  - Footprint `tsensor:PCB_Antenna_IFA_2G4_TI-AN043`:
+    - đồng vẽ trên F.Cu;
+    - khai báo net-tie pad 1–2, vì IFA nối tắt feed với GND về DC;
+    - không vào BOM/CPL.
+- **Vì sao chọn IFA của TI, không chọn IFA của BRD4186C**: IFA thẳng của BRD4186C dài khoảng 20 mm, không vừa dải không pin. Bản uốn khúc của TI rộng 15,2 mm, cao 5,7 mm, vừa dải 7,25 mm phía trên pin.
+- **So với anten chip (phương án trước)**:
+  - Lợi: không tốn tiền (anten chip khoảng 1,1 USD @100), không lo tồn kho (2450AT18A100E tồn LCSC thấp), hình dạng đã được TI đo kiểm.
+  - Thiệt: chiếm diện tích lớn hơn; nhạy hơn với mặt đất, độ dày bo và vỏ.
+- **Bắt buộc tinh chỉnh** [KN]:
+  - TI đo trên PCB của dongle USB, có độ dày, vật liệu và kích thước mặt đất khác bo này. Chính AN043 ghi:
+    - kích thước mặt đất ảnh hưởng hiệu năng;
+    - vỏ nhựa kéo tần số cộng hưởng xuống, bù bằng cách làm anten ngắn đi một chút;
+    - PCB dày/mỏng hơn thì anten ngắn/dài hơn một chút.
+  - Bo này có mặt đất là đĩa Ø35 mm, pin kim loại sau lưng và vỏ nhựa, nên **chắc chắn lệch tần**. Lệch bao nhiêu thì chưa biết [ĐOÁN].
+  - Cách đo (T3.1):
+    1. Tháo R1 (0 Ω).
+    2. Hàn pigtail coax 50 Ω: lõi vào pad ANT_FEED của R1, vỏ vào GND sát bên.
+    3. Đo S11 khi đã lắp pin và đóng vỏ.
+    4. Chỉnh C14/R1/C15 để S11 < −10 dB trong 2400–2483,5 MHz.
+  - Nếu mạng π không kéo về được, sửa chiều dài nhánh hở L1 trong footprint rồi đặt lại PCB. Cộng hưởng thấp thì rút ngắn L1.
+- **Vùng cấm đồng**:
+  - Phía trên mép mặt đất (y < −10,1 mm), trên **mọi lớp**: không đổ đồng, không via, không track (luật `KEEPOUT_ANTENNA`). Không đặt linh kiện.
+  - Khâu via GND dọc mép mặt đất (phía phải; phía trái là TC2030) và quanh mép bo.
 - **Ảnh hưởng của pin kim loại**: CR2450 là đĩa kim loại Ø24,5 mm, cách bo 1–2 mm, như một tấm phản xạ/mặt đất lệch tâm.
-  - Đẩy pin **lệch tâm 2,0 mm** về phía đối diện anten, để được dải 7,25 mm không pin. Lệch 3,5 mm thì góc thân kẹp thò ra ngoài mép bo.
-  - Anten cách mép bóng pin ≥ 3–5 mm.
+  - Đẩy pin **lệch tâm 2,0 mm** về phía đối diện anten, để có dải 7,25 mm không pin (từ mép bo y = −17,5 tới bóng pin y = −10,25 mm). Lệch 3,5 mm thì góc thân kẹp thò ra ngoài mép bo.
+  - Toàn bộ anten nằm ngoài bóng pin. Mép bóng pin gần như trùng mép mặt đất (cách 0,15 mm). Đầu hở và các khúc uốn cách bóng pin 1–5 mm.
+  - Pin làm mặt đất hiệu dụng lớn hơn và kéo tần số [ĐOÁN về độ lớn]. Xử lý bằng tinh chỉnh ở trên.
   - Hai càng kẹp (+) của MY-2450-03 nằm ở vị trí khoảng 3 giờ và 9 giờ, xa anten (12 giờ).
 - **Ảnh hưởng của vỏ nhựa**: ABS/PC (εr ≈ 2,7–3,2) kéo tần số cộng hưởng xuống vài chục tới hơn 100 MHz, tuỳ khoảng cách [ĐOÁN về độ lớn].
   - **Tinh chỉnh π khi đã đóng vỏ và lắp pin.**
   - Giữ khe không khí ≥ 1 mm giữa anten và thành vỏ.
+- **Chữ in mặt sau** nằm ngay sau lưng anten. Lớp mực chỉ dày cỡ vài chục µm, ảnh hưởng không đáng kể [TT].
 - **Hiệu suất**: bo Ø35 nhỏ hơn nhiều so với 55×30 mm mà Silicon Labs khuyến nghị cho module. Dự kiến kém kit tham chiếu vài dB [ĐOÁN]. Cổng kiểm thử T3.5 đặt mức suy hao ≤ 6 dB. Không đạt thì tăng đường kính bo (mục 1.3).
 
 ## 4.6 Thạch anh
@@ -165,18 +195,30 @@ Layout: thạch anh cách chân ≤ 2–3 mm, vòng GND bao quanh, không đi d�
 
 **Xếp linh kiện trên bo tròn** (xem `hardware/floorplan.svg` và PCB trong `hardware/kicad/`):
 - Pin lệch tâm 2,0 mm về hướng 6 giờ.
-- 12 giờ: anten + vùng cấm. Ngay dưới là chuỗi phối hợp RF rồi MG24 (QFN40, xoay 180° để chân RF hướng lên anten). HFXO bên phải; LFXO, cuộn DC-DC, decoupling bên dưới.
-- Khoảng 2 giờ: **lưỡi cảm biến**. Chân I²C (PC02/PC03) của MG24 nằm ở phía này.
-- Khoảng 11 giờ: TC2030-NL, gần chân SWD (PA01–PA03). Đặt ngoài bóng pin và thân kẹp vì 3 lỗ NPTH định vị xuyên bo.
-- Tâm bo: nút bấm. LED cạnh nút.
-- Tụ dự trữ và MOSFET gần đường cấp từ kẹp (+).
+- 12 giờ: **anten IFA đồng** + vùng cấm (y < −10,1 mm).
+  - Ngay dưới mép mặt đất là chuỗi phối hợp RF, nằm ngang, điểm feed ở bên trái.
+  - Tiếp theo là MG24 (QFN40, xoay 180° để chân RF hướng lên anten).
+  - HFXO bên phải; LFXO, cuộn DC-DC, decoupling bên dưới.
+- 6 giờ: **lưỡi cảm biến**, SHT40 ở đầu lưỡi (mép dưới). Tụ 100 nF ở gốc lưỡi.
+  - Chân I²C (PC02/PC03) ra ở cạnh phải MG24, cạnh R2/R3.
+  - Đi dây xuống lưỡi theo phía phải (giữa nút và C1/C2), tránh xa Y2.
+- Khoảng 10 giờ: TC2030-NL, gần chân SWD (PA01–PA03), ngay dưới mép mặt đất. Đặt ngoài bóng pin và thân kẹp vì 3 lỗ NPTH định vị xuyên bo.
+- Giữa bo, dưới MG24: **nút TS-1088** (3,9 × 3,0 mm, 2 chân SMD). LED bên trái nút.
+- Tụ dự trữ và MOSFET gần đường cấp từ kẹp (+), bên phải.
+- Pad test: VCOM ở bên trái; VBAT/GND và PTI ở hai bên lưỡi.
 
 **Lưỡi cảm biến (cách ly nhiệt)** theo Sensirion Design Guide:
 - 2 khe phay rộng 0,8–1,0 mm từ mép bo vào khoảng 6 mm, tạo "ngón" rộng khoảng 4 mm, nối với bo ở gốc.
 - **Không đổ đồng trên lưỡi ở mọi lớp.** Chỉ 4 dây 0,15 mm (VDD, GND, SDA, SCL).
 - Không có đồng dưới cảm biến ngoài pad. Không hàn pad giữa/die pad. Không đặt via cạnh cảm biến.
 - Tụ 100 nF ở gốc lưỡi.
-- Lưỡi cách MG24, cuộn DC-DC và LED ≥ 10 mm, nằm ngoài bóng pin (khối kim loại khoảng 7 g làm chậm đáp ứng).
+- Lưỡi cách MG24, cuộn DC-DC và LED ≥ 10 mm (LED 10,9 mm, DC-DC 15 mm, MG24 19 mm).
+- **Cảm biến nằm ngoài bóng pin**: thân SHT40 bắt đầu ở y = 14,85 mm, mép bóng pin ở y = 14,25 mm.
+- **Đánh đổi khi lưỡi ở 6 giờ** (đúng hướng pin lệch tâm):
+  - Khoảng 3 mm gốc lưỡi (y 11,1–14,25 mm) nằm trong bóng pin.
+  - Pin là khối kim loại khoảng 7 g. Nó không sinh nhiệt, nhưng nếu chạm gốc lưỡi sẽ làm chậm đáp ứng khi nhiệt độ thay đổi nhanh. Ở trạng thái ổn định thì không gây sai số [ĐOÁN về độ lớn].
+  - Giảm bằng cách: thiết kế vỏ để mặt pin không ép lên gốc lưỡi (khe 0,3–0,5 mm hoặc miếng cách nhiệt mỏng); giữ khe phay; không đổ đồng trên lưỡi.
+  - Kiểm chứng ở T5.3 (thời gian đáp ứng).
 - Ghi chú định lượng [TT]: công suất trung bình của thiết bị chỉ khoảng 15 µW, nên **tự sưởi ở chế độ thường gần như bằng 0**. Lưỡi PCB chủ yếu để:
   1. cách ly với nhiệt lúc commissioning (vài mA trong khoảng 1 phút);
   2. giảm khối nhiệt để đáp ứng nhanh;
@@ -230,12 +272,12 @@ Biến thể **A = chip trần (khuyến nghị)**, **B = module MGM240S** (xem 
 | Cảm biến | SHT40-AD1B (C2848306) | |
 | Thạch anh | TZ3541C 39 MHz (C5360883), FC-12M 9 pF (C96341) | |
 | Nguồn | DMP2035U-7 (C110499), 2×CL31A107MQHNNNE (C15008), DFE2HCAH2R2MJ0L (C2043106), 2×4,7 µF X7R 0603 TCC0603X7R475K6R3CT (C5360855), 1 µF (C52923), 100 nF (C1525) | Datasheet: CDCDC 4,7 µF X7R, CIN ≥ CDCDC |
-| RF | 2450AT18A100E (C89334), mạng phối hợp 0201 Murata (C237441, C2041495, C710810, C1864525, C85892), π 0 Ω (C17168) | Giá trị phối hợp **cần xác minh** |
-| Giao tiếp người dùng | C&K PTS815SJM250SMTRLFS (C2689510, footprint PTS810/815), APTD1608LSURCK (C5342734), 680 Ω (C25130) | |
+| RF | Anten IFA vẽ bằng đồng trên PCB (không có linh kiện), mạng phối hợp 0201 Murata (C237441, C2041495, C710810, C1864525, C85892), π 0 Ω (C17168) | Giá trị phối hợp **cần xác minh**; anten **phải tinh chỉnh** bằng VNA |
+| Giao tiếp người dùng | Nút XUNPU TS-1088-AR02016 (C720477, **Basic**, SMD 3,9 × 3,0 × 2,0 mm, 2 chân, 160 gf), APTD1608LSURCK (C5342734), 680 Ω (C25130) | Footprint riêng theo bản vẽ hãng: pad 1,05 × 2,0 mm, tâm ±2,225 mm |
 | Pin | Kẹp MY-2450-03 (C2988622) + pad ENIG | Mặt sau: PCBA 2 mặt hoặc hàn tay |
 | Debug | Footprint TC2030-NL + pad test | |
 
-**Ước tính chi phí linh kiện** (LCSC, 100 bộ): khoảng **14 USD/bo** (riêng MG24 khoảng 9,7). Ở 1k+ với giá nhà phân phối chính hãng còn khoảng 9–10 USD. Chưa gồm PCB, lắp ráp, vỏ, pin.
+**Ước tính chi phí linh kiện** (LCSC, 100 bộ): khoảng **12,7 USD/bo** (riêng MG24 khoảng 9,7; anten đồng trên PCB 0 USD). Ở 1k+ với giá nhà phân phối chính hãng còn khoảng 8,5–9,5 USD. Chưa gồm PCB, lắp ráp, vỏ, pin.
 
 **Lưu ý JLCPCB**:
 - Hầu hết linh kiện là "Extended", phí khoảng 3 USD/mã/lô.
@@ -244,14 +286,15 @@ Biến thể **A = chip trần (khuyến nghị)**, **B = module MGM240S** (xem 
 
 ## 4.11 Project KiCad (`hardware/kicad/`)
 
-**Trạng thái v0.1 (07/11/2026)**
+**Trạng thái v0.1 (cập nhật 10/11/2026: anten đồng trên PCB, cảm biến ở mép dưới, nút TS-1088)**
 
 | Hạng mục | Trạng thái |
 |---|---|
-| Schematic `tsensor.kicad_sch` (A3, 1 trang, 7 khối) | **Xong.** Netlist xuất bằng `kicad-cli` khớp 100 % với `design.py`: 122 chân, 29 net, 14 chân NC, có PWR_FLAG |
-| Thư viện riêng `lib/` | Symbol EFR32MG24B010F1536IM40 theo Table 6.3 datasheet. Footprint QFN40 theo land pattern Table 7.2 (pad 0,74 × 0,22 mm, EP 3,85 mm, kem 3×3 ô 0,9 mm, 4 via GND). Kẹp MY-2450-03 (pad mép–mép 29,90 mm) + pad (−) Ø9 mm |
-| PCB `tsensor.kicad_pcb` | Viền Ø35 mm có lưỡi cảm biến, 2 khe 0,8 mm. Stack-up 4 lớp 0,8 mm, ENIG. 40 linh kiện đã đặt, net đã gán. Zone GND (F.Cu/In1/B.Cu) + VBAT (In2). Vùng cấm anten và lưỡi. Via khâu GND quanh mép |
-| DRC (pcbnew 7) | **0 lỗi**. Còn 59 "unconnected" (chưa đi dây) và 2 cảnh báo vùng VBAT ở In2 chưa có via (hết khi đi dây) |
+| Schematic `tsensor.kicad_sch` (A3, 1 trang, 7 khối) | **Xong.** Netlist xuất bằng `kicad-cli` khớp 100 % với `design.py`: 122 chân, 29 net, 13 chân NC, có PWR_FLAG |
+| Thư viện riêng `lib/` | Symbol EFR32MG24B010F1536IM40 theo Table 6.3 datasheet. Footprint: <br>• QFN40 theo land pattern Table 7.2 (pad 0,74 × 0,22 mm, EP 3,85 mm, kem 3×3 ô 0,9 mm, 4 via GND); <br>• kẹp MY-2450-03 (pad mép–mép 29,90 mm) + pad (−) Ø9 mm; <br>• **anten IFA đồng theo TI AN043** (net-tie pad 1–2, không vào BOM/CPL); <br>• **nút TS-1088** (pad 1,05 × 2,0 mm, tâm ±2,225 mm theo bản vẽ XUNPU) |
+| PCB `tsensor.kicad_pcb` | Viền Ø35 mm có lưỡi cảm biến ở 6 giờ, 2 khe 0,8 mm. Anten đồng ở 12 giờ. Stack-up 4 lớp 0,8 mm, ENIG. 40 footprint đã đặt, net đã gán. Zone GND (F.Cu/In1/B.Cu) + VBAT (In2). Vùng cấm anten (mọi lớp), rãnh F.Cu quanh chân anten, vùng cấm lưỡi. 21 via khâu GND, tự lọc theo pad, courtyard, vùng cấm và chữ in |
+| Chữ in (silkscreen) | **Mặt sau**, ở dải phía trên pin (ngay sau lưng anten, không bị pin che): **Temperature sensor / Design by Haxeko / Made in Vietnam**. Mặt trước: nhãn pad test, SWD, v0.1 |
+| DRC (pcbnew 7) | **0 lỗi**. Còn 59 "unconnected" (chưa đi dây) và 1 cảnh báo vùng VBAT ở In2 chưa có via (hết khi đi dây) |
 | Đi dây | **CHƯA**. Đây là việc tiếp theo |
 | File xuất sẵn | `plots/tsensor_schematic.pdf`, `plots/pcb_front.svg`, `plots/pcb_back.svg`, `build/bom_jlcpcb.csv`, `build/cpl_positions.csv`, `build/drc_report.txt` |
 
@@ -265,7 +308,8 @@ Biến thể **A = chip trần (khuyến nghị)**, **B = module MGM240S** (xem 
 
 **Lệch tâm pin 2,0 mm** (không phải 3,5 mm như floorplan khái niệm ban đầu):
 - Thân kẹp MY-2450-03 dài 29,1 × 15,4 mm. Ở lệch tâm 3,5 mm, góc thân kẹp thò ra ngoài mép bo khoảng 0,9 mm.
-- Ở 2,0 mm, góc kẹp chạm khít mép bo (thành vỏ phải chừa chỗ). Dải không pin cho anten còn 7,25 mm, vùng cấm anten (y < −14,4 mm) vẫn cách mép bóng pin 4,15 mm.
+- Ở 2,0 mm, góc kẹp chạm khít mép bo (thành vỏ phải chừa chỗ). Dải không pin cho anten còn 7,25 mm (y từ −17,5 tới −10,25 mm).
+- Anten TI cao 5,4 mm, cộng 0,5 mm chân, vừa dải này: mép mặt đất đặt ở y = −10,1 mm, sát mép bóng pin.
 
 **Việc cần làm khi đi dây** (theo thứ tự):
 1. **Xác minh trước khi đi dây**:
@@ -275,13 +319,15 @@ Biến thể **A = chip trần (khuyến nghị)**, **B = module MGM240S** (xem 
    - chân TZ3541C (1/3 = thạch anh, 2/4 = GND).
 2. Chọn stack-up thật của JLCPCB cho 4 lớp 0,8 mm. Tính bề rộng CPWG 50 Ω bằng impedance calculator, sửa netclass **RF** (đang tạm 0,2 mm) và chỉnh lại dielectric trong Board Setup.
 3. **Đi RF trước**:
-   - Chuỗi RF2G4_IO → L2 → (C11) → L3 → (C12) → C13 → (C14) → R1 → (C15) → pad 1 của ANT1.
+   - Chuỗi RF2G4_IO → L2 → (C11) → L3 → (C12) → C13 → (C14) → R1 → (C15) → pad 1 (feed) của ANT1.
    - Đi trên F.Cu, ngắn nhất, khâu via GND hai bên mỗi ≤ 2 mm.
    - Tụ shunt xuống In1 bằng via riêng.
+   - Đường feed từ R1/C15 vào pad 1 đi qua rãnh F.Cu dưới chân anten (rãnh cho phép track). Không chạy đường nào khác vào rãnh hay vùng cấm anten.
+   - Không đổi hình dạng anten khi chưa có số đo S11. Muốn đổi thì sửa `write_pcb_antenna()` trong `gen_kicad.py` hoặc sửa footprint.
 4. **HFXO/LFXO**: đường ngắn, không chạy tín hiệu khác qua hay dưới thạch anh.
 5. **DC-DC**: vòng VREGSW → L1 → C4 → VREGVSS nhỏ nhất, via GND sát C4.
 6. **Decoupling**: tụ sát chân. Via **VBAT** xuống In2 (nối vùng VBAT), via GND xuống In1.
-7. **Lưỡi cảm biến**: 4 dây 0,15 mm trên F.Cu. Không đặt via trong vùng cấm.
+7. **Lưỡi cảm biến**: 4 dây 0,15 mm trên F.Cu, đi phía phải nút (giữa SW1 và C1/C2) rồi vào lưỡi. Không đặt via trong vùng cấm.
 8. Chạy DRC tới khi hết "unconnected". Kiểm tra vùng cấm anten không còn đồng.
 
 **Đặt hàng JLCPCB**:

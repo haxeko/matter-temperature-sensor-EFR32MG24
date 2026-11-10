@@ -287,6 +287,71 @@ def write_battery_clip(lib_dir: Path) -> None:
     (lib_dir / f"{name}.kicad_mod").write_text("".join(out))
 
 
+def write_pcb_antenna(lib_dir: Path) -> None:
+    """Anten meander inverted-F 2,4 GHz theo TI AN043 (SWRA117D), Figure 3 / Table 1:
+    L1 3,94  L2 2,70  L3 5,00  L4 2,64  L5 2,00  L6 4,90  W1 0,90  W2 0,50
+    D1 0,50  D2 0,30  D3 0,30  D4 0,50  D5 1,40  D6 1,70 (mm) -> khối 15,2 × 5,7 mm.
+    Gốc toạ độ: giữa anten, tại mép mặt đất (y = 0); anten hướng lên (y âm).
+    Chân 1 = feed (đáy nhánh W2), chân 2 = nối GND bằng via (đáy nhánh W1).
+    IFA nối tắt feed với GND về DC -> khai báo net tie "1, 2"."""
+    name = "PCB_Antenna_IFA_2G4_TI-AN043"
+    x0 = 7.2  # dịch để kim loại nằm giữa: x_TI ∈ [0, 14.4] -> [-7.2, 7.2]
+    # Các hình chữ nhật (toạ độ TI: x từ mép trái nhánh nối đất, y hướng lên từ mép mặt đất)
+    rects = [
+        (0.0, -0.5, 0.9, 4.9),     # nhánh nối đất (W1), kéo xuống D4 = 0,5 mm vào vùng mặt đất
+        (2.3, -0.5, 2.8, 4.9),     # nhánh feed (W2), cách nhánh đất D5 = 1,4 mm
+        (0.0, 4.9, 5.0, 5.4),      # thanh trên L3
+        (4.5, 2.26, 5.0, 4.9),     # meander xuống (L4)
+        (4.5, 2.26, 7.5, 2.76),    # thanh dưới (W2 + L5 + W2)
+        (7.0, 2.26, 7.5, 4.9),     # meander lên
+        (7.0, 4.9, 9.7, 5.4),      # thanh trên L2
+        (9.2, 2.26, 9.7, 4.9),     # meander xuống
+        (9.2, 2.26, 12.2, 2.76),   # thanh dưới
+        (11.7, 2.26, 12.2, 4.9),   # meander lên
+        (11.7, 4.9, 14.4, 5.4),    # thanh trên L2
+        (13.9, 0.96, 14.4, 4.9),   # nhánh cuối hở L1 = 3,94 mm
+    ]
+    out = fp_header(name, "2.4 GHz meandered inverted-F PCB antenna, copy of TI AN043 / CC2511 USB dongle "
+                          "(15.2 x 5.7 mm). Keep all copper layers clear around the antenna; tune with the pi network",
+                    "antenna PCB IFA 2.4GHz TI AN043")
+    out[-1] = '  (attr exclude_from_pos_files exclude_from_bom)\n'
+    out.append('  (net_tie_pad_groups "1, 2")\n')
+    out.append(fp_text("reference", "REF**", -1.5, -1.2, "F.Fab", 0.6))
+    out.append(fp_text("value", name, 0, -6.4, "F.Fab", 0.5))
+    for xa, ya, xb, yb in rects:
+        pts = [(xa - x0, -ya), (xb - x0, -ya), (xb - x0, -yb), (xa - x0, -yb)]
+        xy = " ".join(f"(xy {fmt(x)} {fmt(y)})" for x, y in pts)
+        out.append(f'  (fp_poly (pts {xy}) (stroke (width 0) (type solid)) (fill solid) (layer "F.Cu"))\n')
+    out.append('  (pad "1" smd rect (at -4.65 0.25) (size 0.5 0.5) (layers "F.Cu"))\n')
+    out.append('  (pad "2" thru_hole circle (at -6.75 0.25) (size 0.6 0.6) (drill 0.3) (layers "*.Cu" "*.Mask") (zone_connect 2))\n')
+    out.append(fp_rect(-7.7, -5.7, 7.5, 0.5, "F.Fab", 0.1))
+    out.append(fp_line(-7.7, 0, 7.5, 0, "F.Fab", 0.05))   # mép mặt đất
+    # Courtyard ôm sát kim loại (cách 0,25 mm) để không "đụng" linh kiện phối hợp RF ngay dưới mép đất
+    out.append(fp_poly([(-7.45, 0.75), (-4.15, 0.75), (-4.15, -2.01), (6.45, -2.01), (6.45, -0.71),
+                        (7.45, -0.71), (7.45, -5.65), (-7.45, -5.65)], "F.CrtYd", 0.05))
+    out.append(")\n")
+    (lib_dir / f"{name}.kicad_mod").write_text("".join(out))
+
+
+def write_ts1088(lib_dir: Path) -> None:
+    """XUNPU TS-1088-AR02016 (LCSC C720477): thân 3,9 × 3,0 mm, 2 chân SMD.
+    Bản vẽ hãng: pad 1,05 × 2,00 mm, mép ngoài 5,50 mm, mép trong 3,40 mm (tâm ±2,225 mm)."""
+    name = "SW_SPST_XUNPU_TS-1088_3.9x3mm"
+    out = fp_header(name, "Tactile switch SMD 3.9x3.0 mm, 2 pads, XUNPU TS-1088 (land pattern per maker drawing)",
+                    "switch tactile SMD TS-1088 3x4")
+    out.append(fp_text("reference", "REF**", 0, -2.5, "F.SilkS", 0.8))
+    out.append(fp_text("value", name, 0, 2.5, "F.Fab", 0.5))
+    for n, x in (("1", -2.225), ("2", 2.225)):
+        out.append(f'  (pad "{n}" smd rect (at {fmt(x)} 0) (size 1.05 2) (layers "F.Cu" "F.Paste" "F.Mask"))\n')
+    out.append(fp_rect(-1.95, -1.5, 1.95, 1.5, "F.Fab", 0.1))
+    out.append(fp_circle(0, 0, 0.9, "F.Fab", 0.1))
+    out.append(fp_line(-1.45, -1.62, 1.45, -1.62, "F.SilkS", 0.12))
+    out.append(fp_line(-1.45, 1.62, 1.45, 1.62, "F.SilkS", 0.12))
+    out.append(fp_rect(-3.0, -1.75, 3.0, 1.75, "F.CrtYd", 0.05))
+    out.append(")\n")
+    (lib_dir / f"{name}.kicad_mod").write_text("".join(out))
+
+
 # ---------------------------------------------------------------------------
 # Schematic
 # ---------------------------------------------------------------------------
@@ -448,12 +513,14 @@ def build_schematic(out_dir: Path) -> dict:
             ra, va = (x - 5.08, y - 11.43), (x - 5.08, y + 12.7)
         elif p["ref"] == "Y1":
             ra, va = (x + 5.08, y - 3.81), (x + 5.08, y + 3.81)
-        elif p["ref"] in ("Y2", "D1", "SW1", "ANT1"):
+        elif p["ref"] == "ANT1":
+            ra, va = (x + 3.81, y - 3.81), (x + 3.81, y - 1.27)
+        elif p["ref"] in ("Y2", "D1", "SW1"):
             ra, va = (x - 3.81, y - 6.35), (x - 3.81, y - 3.81)
         else:
             ra, va = (x + 2.54, y - 1.27), (x + 2.54, y + 1.27)
         pins = sch.symbol(p["lib_id"], p["ref"], p["value"], x, y, rot, props=props, dnp=p["dnp"],
-                          ref_at=ra, val_at=va, hide_val=p["ref"].startswith("TP"))
+                          ref_at=ra, val_at=va, hide_val=p["ref"].startswith("TP"), in_bom=not p["virtual"])
         stub = 5.08 if is_ic else 2.54
         for num, pin in pins.items():
             net = p["pins"].get(num, "MISSING")
@@ -563,7 +630,7 @@ def write_jlc_bom(out_dir: Path) -> None:
     import csv
     groups: dict[tuple, list] = {}
     for p in D.PARTS:
-        if p["dnp"] or p["ref"].startswith("TP") or p["ref"] == "J1":
+        if p["dnp"] or p["virtual"] or p["ref"].startswith("TP") or p["ref"] == "J1":
             continue
         key = (p["value"] + (f" {p['spec']}" if p["spec"] else ""), p["footprint"].split(":")[1], p["lcsc"], p["mpn"])
         groups.setdefault(key, []).append(p["ref"])
@@ -583,6 +650,8 @@ def main() -> None:
     write_symbol_lib(lib_dir)
     write_qfn40(lib_dir / "tsensor.pretty")
     write_battery_clip(lib_dir / "tsensor.pretty")
+    write_pcb_antenna(lib_dir / "tsensor.pretty")
+    write_ts1088(lib_dir / "tsensor.pretty")
     expected = build_schematic(out_dir)
     write_project(out_dir)
     exp_path = out_dir / "build" / "expected_nets.json"
